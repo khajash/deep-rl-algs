@@ -1,29 +1,13 @@
 import numpy as np
 import random
 from tqdm import tqdm
+from .core import BaseAlg 
 
-
-class QLearning(object):
+class QLearning(BaseAlg):
 
     def __init__(self, env, policy, seed, new_step_api=False) -> None:
-        self._set_seed(seed)
-        self.env = env
-        self.policy = policy
-        self.new_step_api = new_step_api
-
-
-    def _set_seed(self, seed):
-        random.seed(seed)
-        np.random.seed(seed)
-
-    def train(self, n_iters):
-        self.policy.train()
-        return self._run_env(train=True, n_iters=n_iters, render=False)
-
-    def test(self, render, n_iters=1):
-        self.policy.eval()
-        return self._run_env(train=False, n_iters=n_iters, render=render)
-
+        super().__init__(env, policy, seed, new_step_api)
+    
     def _run_env(self, train, n_iters, render=False):
         
         rew_list = []
@@ -48,7 +32,7 @@ class QLearning(object):
                 
                 # render env
                 if render:
-                    env.render()
+                    self.env.render()
                 
                 # update policy
                 if train:
@@ -90,16 +74,15 @@ class QTable(object):
     
     def act(self, obs, i):
         # epsilon-greedy
-        # if self._train and (random.random() < self.eps):
-        if self._train:
-            # a = np.random.choice(self.n_act, 1)
-            a = np.argmax(self.q_table[obs] + np.random.randn(1,self.n_act)*(1./(i+1)))
+        if self._train and (random.random() < self.eps):
+        # if self._train:
+            a = np.random.choice(self.n_act, 1)
+            # a = np.argmax(self.q_table[obs] + np.random.randn(1,self.n_act)*(1./(i+1)))
         else:
-            a = np.argmax(self.q_table[obs]) 
+            a = np.argmax(self.q_table[obs])
         return int(a)
 
     def update(self, obs, a, rew, obs_):
-        # print(a, type(a))
         self.q_table[obs, a] += self.lr * (rew + self.gamma * (self.q_table[obs_, np.argmax(self.q_table[obs_])]) - self.q_table[obs, a])
 
 
