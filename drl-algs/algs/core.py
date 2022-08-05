@@ -16,6 +16,8 @@ class BaseAlg(object):
     def _set_seed(self, seed):
         random.seed(seed)
         np.random.seed(seed)
+        # TODO: env seed not working
+        # self.env.seed(seed)
 
     def _step_env(self, a):
         if self.new_step_api:
@@ -41,8 +43,8 @@ class BaseAlg(object):
 
 class BaseNNAlg(BaseAlg):
     
-    def __init__(self, env, policy, seed=None, new_step_api=False) -> None:
-        super().__init__(env, policy, seed, new_step_api)
+    def __init__(self, env, seed=None, new_step_api=False) -> None:
+        super().__init__(env, None, seed, new_step_api)
 
 
     def _set_seed(self, seed):
@@ -52,12 +54,10 @@ class BaseNNAlg(BaseAlg):
 
 
     def train(self, n_iters):
-        self.policy.train()
         return self._run_env(train=True, n_iters=n_iters, render=False)
 
 
     def test(self, render, n_iters=1):
-        self.policy.eval()
         return self._run_env(train=False, n_iters=n_iters, render=render)
 
 

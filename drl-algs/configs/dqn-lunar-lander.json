@@ -1,0 +1,18 @@
+{
+  "env": "LunarLander-v2",
+  "env_params": {
+    "continuous": false,
+    "gravity" : -10.0,
+    "enable_wind" : false,
+    "wind_power" : 15.0,
+    "turbulence_power" : 1.5
+  },
+  "optimizer": "rsmprop",
+  "optim_params": {
+    "lr": 0.1
+  },
+  "policy_params": {
+    "in_channels": 4,
+    "img_size": 84
+  }
+}

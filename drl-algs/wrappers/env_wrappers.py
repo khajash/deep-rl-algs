@@ -36,7 +36,7 @@ class MaxAndSkipEnv(gym.Wrapper):
         #     print("extending obs")
         #     n = self.obs_len - new_obs.shape[-1]
         #     new_obs = np.concatenate([new_obs]+ [np.expand_dims(new_obs[...,2], axis=-1)]*n, axis=-1)
-        
+
         assert new_obs.shape[-1] == self.obs_len
 
         return new_obs, rew, done, info
@@ -49,6 +49,7 @@ class MaxAndSkipEnv(gym.Wrapper):
         img = self.env.render("rgb_array")
         self._img_buffer.append(img)
 
+        # obs needs a stack, so step environment and create stack
         for _ in range(self._frameskip):
             self.env.step(0) # noop
             img = self.env.render("rgb_array")
@@ -70,17 +71,18 @@ class ScaleFrame(gym.Wrapper):
     # gym.wrapper for scaling frames
     def __init__(self, env, height, width, channels) -> None:
         super().__init__(env)
-        self.observation_space = spaces.Box(low=0, high=1.0, shape=(height, width, channels), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=1.0, shape=(channels, height, width), dtype=np.float32)
         self._img_out = (height, width)
     
     def step(self, action):
         obs, rew, done, info = self.env.step(action)
         scaled_obs = cv2.resize(obs, dsize=self._img_out, interpolation=cv2.INTER_LINEAR)
+        scaled_obs = np.transpose(scaled_obs, (2, 0, 1))
         return scaled_obs, rew, done, info 
 
     def reset(self):
         obs = self.env.reset()
-        return cv2.resize(obs, dsize=self._img_out, interpolation=cv2.INTER_LINEAR)
+        return np.transpose(cv2.resize(obs, dsize=self._img_out, interpolation=cv2.INTER_LINEAR), (2, 0, 1))
 
 
 

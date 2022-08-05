@@ -22,7 +22,8 @@ class CircularBuffer(object):
 
         if isinstance(data_dims, int):
             data_dims = (data_dims,)
-        self.data_buff = np.zeros((max_len,) + data_dims).astype(dtype)
+
+        self.data_buff = np.zeros((max_len,) + data_dims, dtype=dtype)
         self.max_len = max_len
         self.insert_idx = 0
         self.is_full = False
@@ -60,13 +61,12 @@ class ReplayMemory(object):
         self.device = device
 
         self.obs = CircularBuffer(max_len, obs_shape, dtype)
-        self.act = CircularBuffer(max_len, act_shape, dtype)
+        self.act = CircularBuffer(max_len, act_shape, 'int')
         self.rew = CircularBuffer(max_len, (1,), dtype)
         self.new_obs = CircularBuffer(max_len, obs_shape, dtype)
         self.done = CircularBuffer(max_len, (1,), dtype)
 
     def sample(self, batch_size: int, to_tensor: bool = False) -> dict:
-        print(batch_size, len(self.obs))
         if batch_size > len(self.obs):
             raise IndexError("Searching for one or more index out of range")
             

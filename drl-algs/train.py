@@ -1,66 +1,51 @@
-from textwrap import wrap
 import gym
-from wrappers.atari_wrappers import wrap_deepmind
 import json
-import matplotlib.pyplot as plt
+import torch
+import wandb
+
 from wrappers.env_wrappers import MaxAndSkipEnv, ScaleFrame
+from algs.dqn import DQN
 
 def main(config_file):
-    # with open(config_file, "r") as f:
-    #     config = json.load(f)
-    # print(config)
+    
+    with open(config_file, "r") as f:
+        config = json.load(f)
+    print(config)
 
-    # env = gym.make(config['env'], **config['env_params'])
+    to_render = True
+    seed = 17
+    mem_size = 1e6
+    new_step_api = False
+    epsilon = 0.5
+    min_eps = 0.05
+    n_iters = 100
+    target_update=5
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Running model on device {device}")
+
+    wandb.init(project=config['env'], group="DQN-v0", config=config)
+    config = wandb.config
+    print("\nConfig:\n", config)
+
+    env = gym.make(config['env'], **config['env_params'])
     # env = wrap_deepmind(en)v
     # try wrappers RecordVideo or RecordEpisodeStatistics to document episode stats
 
-
-    env = gym.make(
-        "LunarLander-v2",
-        continuous = False, # makes action space continuous
-        gravity = -10.0,
-        enable_wind = False,
-        wind_power = 15.0,
-        turbulence_power = 1.5,
-        # render_mode = "rgb_array"
-    )
-
-    to_render = True
-
     env = MaxAndSkipEnv(env, frameskip=4, obs_len=4)
     env = ScaleFrame(env, 84, 84, 4)
-    # env = gym.make( "LunarLander-v2", continuous = False, gravity = -10.0, enable_wind = False, wind_power = 15.0, turbulence_power = 1.5)
 
-    obs = env.reset()
-    done = False
+    # Initialize agent
+    dqn_agent = DQN(env, seed=seed, optim_kwargs=config["optim_params"], policy_kwargs=config["policy_params"], 
+                    target_update=target_update, epsilon=epsilon, min_eps=min_eps, mem_size=mem_size, new_step_api=new_step_api)
 
-    print("obs shape", obs.shape, obs.min(), obs.max())
-    # plt.imshow(obs)
-    # plt.show()
-    i = 0
-    while not done:
-        action = env.action_space.sample()
+    # Train agent
+    # TODO: add save model
+    dqn_agent.train(n_iters, 64)
 
-        out = env.step(action)
-        # print
-        if len(out) == 4:
-            # print("old step")
-            new_obs, rew, done, info = out
-        else: 
-            new_obs, rew, term, trunc, info = out
-            done = term or trunc
-        # print("done:", done)
-        print("obs here: ", new_obs.shape, new_obs.min(), new_obs.max())
-        if to_render:
-            env.render(mode="human")
-
-        i += 1
-        if i > 5:
-            break
-    env.close()
 
 if __name__ == "__main__":
-    fn = "./configs/dqn-atari.json"
+    fn = "./configs/dqn-lunar-lander.json"
     main(fn)
 
 
