@@ -14,12 +14,14 @@ def main(config_file):
 
     to_render = True
     seed = 17
-    mem_size = 1e6
+    mem_size = int(1e6)
     new_step_api = False
-    epsilon = 0.5
-    min_eps = 0.05
-    n_iters = 100
-    target_update=5
+    epsilon = 1.0
+    min_eps = 0.2
+    eps_decay=0.9999
+
+    n_iters = 100000
+    target_update=10
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Running model on device {device}")
@@ -37,7 +39,7 @@ def main(config_file):
 
     # Initialize agent
     dqn_agent = DQN(env, seed=seed, optim_kwargs=config["optim_params"], policy_kwargs=config["policy_params"], 
-                    target_update=target_update, epsilon=epsilon, min_eps=min_eps, mem_size=mem_size, new_step_api=new_step_api)
+                    target_update=target_update, epsilon=epsilon, min_eps=min_eps, eps_decay=eps_decay, mem_size=mem_size, new_step_api=new_step_api)
 
     # Train agent
     # TODO: add save model

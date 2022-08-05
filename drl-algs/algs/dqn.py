@@ -75,7 +75,8 @@ class DQN(BaseNNAlg):
 
         # init loss + optimizer
         self.loss_fn = nn.SmoothL1Loss()
-        self.optimizer = optim.RMSprop(self.q.parameters(), **optim_kwargs)
+        # self.optimizer = optim.RMSprop(self.q.parameters(), **optim_kwargs)
+        self.optimizer = optim.Adam(self.q.parameters(), **optim_kwargs)
     
     
     def train(self, n_iters, batch_size):

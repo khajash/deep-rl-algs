@@ -7,7 +7,7 @@
     "wind_power" : 15.0,
     "turbulence_power" : 1.5
   },
-  "optimizer": "rsmprop",
+  "optimizer": "adam",
   "optim_params": {
     "lr": 0.1
   },
