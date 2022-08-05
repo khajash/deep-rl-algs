@@ -69,20 +69,21 @@ class MaxAndSkipEnv(gym.Wrapper):
 
 class ScaleFrame(gym.Wrapper):
     # gym.wrapper for scaling frames
-    def __init__(self, env, height, width, channels) -> None:
+    def __init__(self, env, height, width, channels, interpolation=cv2.INTER_LINEAR) -> None:
         super().__init__(env)
         self.observation_space = spaces.Box(low=0, high=1.0, shape=(channels, height, width), dtype=np.float32)
         self._img_out = (height, width)
+        self.inter = interpolation
     
     def step(self, action):
         obs, rew, done, info = self.env.step(action)
-        scaled_obs = cv2.resize(obs, dsize=self._img_out, interpolation=cv2.INTER_LINEAR)
+        scaled_obs = cv2.resize(obs, dsize=self._img_out, interpolation=self.inter)
         scaled_obs = np.transpose(scaled_obs, (2, 0, 1))
         return scaled_obs, rew, done, info 
 
     def reset(self):
         obs = self.env.reset()
-        return np.transpose(cv2.resize(obs, dsize=self._img_out, interpolation=cv2.INTER_LINEAR), (2, 0, 1))
+        return np.transpose(cv2.resize(obs, dsize=self._img_out, interpolation=self.inter), (2, 0, 1))
 
 
 
