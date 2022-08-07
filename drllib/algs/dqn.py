@@ -3,9 +3,9 @@ import torch
 import numpy as np
 import wandb
 
-from .utils import get_conv2d_out_dim
-from .core import BaseNNAlg
-from .memory import ReplayMemory
+from drllib.utils import get_conv2d_out_dim
+from drllib.algs.core import BaseNNAlg
+from drllib.utils.memory import ReplayMemory
 
 class DQNPolicy(nn.Module):
     def __init__(

@@ -3,7 +3,7 @@ import random
 from tqdm import tqdm
 from gym.spaces import Discrete
 
-from core import BaseAlg
+from drllib.algs.core import BaseAlg
 
 
 class QLearning(BaseAlg):
