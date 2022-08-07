@@ -19,3 +19,6 @@
 - Learned Q-function directly approximates optimal $q^*$ function, independently of the policy being followed (off-policy)
 
 $$Q(S_t, A_t ) \leftarrow Q(S_t, A_t) + \alpha \left[ R_{t+1} + \gamma \max_z Q(S_{t+1},a) - Q(S_t, A_t) \right]$$
+
+
+## Deep Q-Network

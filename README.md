@@ -5,7 +5,7 @@ This repo will cover various classical deep reinforcement learning algorithm imp
 - Q-Learning
 
 ## Deep RL Algorithms
-- DQN - "Human-level control through deep reinforcement learning" [Mnih et al., 2015](https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf)
+- DQN - "Human-level control through deep reinforcement learning" [(Mnih et al., 2015)](https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf)
 
 ### References
 - [Lilian Weng's DRL Gym](https://github.com/lilianweng/deep-reinforcement-learning-gym)
