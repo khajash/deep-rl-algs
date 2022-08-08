@@ -7,16 +7,20 @@ class BaseAlg(object):
 
     def __init__(self, env, policy, seed=None, new_step_api=False) -> None:
         # if deterministic, set seed
-        if seed: self._set_seed(seed)
         self.env = env
         self.policy = policy
         self.new_step_api = new_step_api
+        
+        if seed is not None: self._set_seed(seed)
 
-    def _set_seed(self, seed):
+    def _set_seed(self, seed, seed_action_space=True):
+        # Need to seed the env and action space if using random sampling
+        # See https://harald.co/2019/07/30/reproducibility-issues-using-openai-gym/
         random.seed(seed)
         np.random.seed(seed)
-        # TODO: env seed not working
-        # self.env.seed(seed)
+        self.env.seed(seed)
+        if seed_action_space:
+            self.env.action_space.seed(seed)
 
     def _step_env(self, a):
         if self.new_step_api:
@@ -45,12 +49,10 @@ class BaseNNAlg(BaseAlg):
     def __init__(self, env, seed=None, new_step_api=False) -> None:
         super().__init__(env, None, seed, new_step_api)
 
-
     def _set_seed(self, seed):
         print("setting torch manual seed")
         torch.random.manual_seed(seed)
         super()._set_seed(seed)
-
 
     def train(self, n_iters):
         return self._run_env(train=True, n_iters=n_iters, render=False)
