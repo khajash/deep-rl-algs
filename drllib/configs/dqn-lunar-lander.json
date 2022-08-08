@@ -11,8 +11,21 @@
   "optim_params": {
     "lr": 0.1
   },
+  "network": "DQN",
   "policy_params": {
     "in_channels": 4,
     "img_size": 84
+  },
+  "alg_params": {
+    "explore_kwargs": {
+      "decay": "linear",
+      "val": 1.0,
+      "end_val": 0.1,
+      "duration": 1e6
+    },
+    "target_update": 1000,
+    "mem_size":1e6,
+    "batch_size": 64,
+    "gamma": 0.998
   }
 }

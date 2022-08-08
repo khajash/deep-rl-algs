@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import wandb
 
-from drllib.utils import get_conv2d_out_dim
+from drllib.utils.utils import get_conv2d_out_dim
 from drllib.algs.core import BaseNNAlg
 from drllib.utils.memory import ReplayMemory
 
@@ -48,8 +48,8 @@ class DQNPolicy(nn.Module):
 
 class DQN(BaseNNAlg):
 
-    def __init__(self, env, seed, optim_kwargs, policy_kwargs, target_update=10, gamma=0.998,
-                epsilon=0.5, min_eps=0.05, eps_decay=0.998, mem_size=int(1e6), device="cpu", new_step_api=False
+    def __init__(self, env, seed, optim_kwargs, policy_kwargs, explore_kwargs, target_update=10, 
+                 gamma=0.998, mem_size=int(1e6), batch_size=64, device="cpu", new_step_api=False
         ) -> None:
 
         super().__init__(env, seed, new_step_api)
@@ -61,9 +61,8 @@ class DQN(BaseNNAlg):
         self.device = device
         self._train = True
         self.gamma = gamma
-        self.eps = epsilon
-        self.min_eps = min_eps
-        self.eps_decay = eps_decay
+        self.batch_size = batch_size
+        self.eps_sched = self._setup_exploration(**explore_kwargs)
 
         # init target q and policy q
         self.q = DQNPolicy(n_actions=self.n_actions, **policy_kwargs).to(device)
@@ -79,11 +78,11 @@ class DQN(BaseNNAlg):
         self.optimizer = optim.Adam(self.q.parameters(), **optim_kwargs)
     
     
-    def train(self, n_iters, batch_size):
-        return self._run_env(train=True, batch_size=batch_size, n_iters=n_iters, render=False)
+    def train(self, n_iters):
+        return self._run_env(train=True, n_iters=n_iters, render=False)
     
     
-    def _run_env(self, train, batch_size, n_iters, render=False):
+    def _run_env(self, train, n_iters, render=False):
         
         steps = 0
         ep_rew_history = []
@@ -111,9 +110,9 @@ class DQN(BaseNNAlg):
                 ep_rew += rew
                 
                 # Sample minibatch
-                if len(self.memory) >= batch_size:
+                if len(self.memory) >= self.batch_size:
                     # get batch transitions
-                    b_tr = self.memory.sample(batch_size, to_tensor=True)
+                    b_tr = self.memory.sample(self.batch_size, to_tensor=True)
 
                     # for k, v in b_tr.items():
                     #     print(k, v.shape, v.dtype)
@@ -151,7 +150,8 @@ class DQN(BaseNNAlg):
                     self.target_q.load_state_dict(self.q.state_dict())
             
             # TODO: update epsilon
-            self.eps = max(self.min_eps, self.eps * self.eps_decay)
+            self.eps_sched.update()
+            # self.eps = max(self.min_eps, self.eps * self.eps_decay)
 
             ep_rew_history.append(ep_rew)
             ep_len_history.append(ep_len)
@@ -165,11 +165,11 @@ class DQN(BaseNNAlg):
                     "ep_length": ep_len,
                     "ep_length_smooth": np.mean(ep_len_history[-100:]),
                     "ep_mean_loss": np.mean(ep_loss),
-                    "epsilon": self.eps,
+                    "epsilon": self.eps_sched.get_value(),
                 })
 
     def _get_action(self, obs):
-        if self._train and (np.random.rand() < self.eps):
+        if self._train and (np.random.rand() < self.eps_sched.get_value()):
             return self.env.action_space.sample()
 
         return self.q._get_action(obs).item()

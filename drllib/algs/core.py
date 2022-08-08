@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import torch
+from drllib.utils.schedulers import LinearScheduler, ExponentialScheduler
 
 
 class BaseAlg(object):
@@ -42,7 +43,13 @@ class BaseAlg(object):
     def _run_env(self, train, n_iters, render=False):
         raise NotImplementedError
 
-
+    def _setup_exploration(self, decay, val, end_val, duration):
+        if decay == "linear":
+            sched = LinearScheduler(val, end_val, duration=duration)
+        else:
+            sched = ExponentialScheduler(val, end_val, duration=duration)
+        return sched
+        
 
 class BaseNNAlg(BaseAlg):
     
