@@ -4,6 +4,9 @@ import numpy as np
 from gym import spaces
 import cv2
 
+# TODO: Look into separating skip and max step
+# TODO: Separate image editing
+
 class MaxAndSkipEnv(gym.Wrapper):
     # gym.wrapper for skip frames and calculating max of two images and stacking all in one
     def __init__(self, env=None, frameskip=4, obs_len=4) -> None:
@@ -30,22 +33,22 @@ class MaxAndSkipEnv(gym.Wrapper):
             
         new_obs = np.stack(self._obs_buffer, axis=2)
 
-        # TODO: account for if done before large buffer - actually don't need this if using obs buffer. 
+        # TODO: account for if done before large buffer - may happen if frameskip is lower than . 
         # print(new_obs.shape)
-        # if new_obs.shape[-1] < self.obs_len:
-        #     print("extending obs")
-        #     n = self.obs_len - new_obs.shape[-1]
-        #     new_obs = np.concatenate([new_obs]+ [np.expand_dims(new_obs[...,2], axis=-1)]*n, axis=-1)
+        if new_obs.shape[-1] < self.obs_len:
+            print("extending obs")
+            n = self.obs_len - new_obs.shape[-1]
+            new_obs = np.concatenate([new_obs]+ [np.expand_dims(new_obs[...,2], axis=-1)]*n, axis=-1)
 
         assert new_obs.shape[-1] == self.obs_len
 
         return new_obs, rew, done, info
 
-    def reset(self):
+    def reset(self, **kwargs):
         """Clear past frame buffer and init. to first obs. from inner env."""
         self._img_buffer.clear()
         self._obs_buffer.clear()
-        _ = self.env.reset()
+        _ = self.env.reset(**kwargs)
         img = self.env.render("rgb_array")
         self._img_buffer.append(img)
 
@@ -81,8 +84,8 @@ class ScaleFrame(gym.Wrapper):
         scaled_obs = np.transpose(scaled_obs, (2, 0, 1))
         return scaled_obs, rew, done, info 
 
-    def reset(self):
-        obs = self.env.reset()
+    def reset(self, **kwargs):
+        obs = self.env.reset(**kwargs)
         return np.transpose(cv2.resize(obs, dsize=self._img_out, interpolation=self.inter), (2, 0, 1))
 
 
