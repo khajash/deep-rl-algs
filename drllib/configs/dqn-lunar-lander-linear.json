@@ -12,19 +12,20 @@
     "lr": 1e-3
   },
   "network": "DQN",
-  "policy": "cnn",
+  "policy": "linear",
   "policy_params": {
-    "in_channels": 4,
-    "img_size": 84
+    "in_features": 8,
+    "lin_layers": [128, 128],
+    "use_bn": false
   },
   "alg_params": {
     "explore_kwargs": {
       "decay": "linear",
       "val": 1.0,
       "end_val": 0.1,
-      "duration": 1e6
+      "duration": 1e5
     },
-    "target_update": 1000,
+    "target_update": 100,
     "mem_size":1e6,
     "batch_size": 64,
     "gamma": 0.998

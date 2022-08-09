@@ -1,5 +1,6 @@
 import gym
 import json
+from matplotlib import use
 import torch
 import wandb
 
@@ -24,7 +25,7 @@ def setup_training_parser():
     )
     parser.add_argument(
         "--n_epochs",
-        default=75,
+        default=10000,
         type=int,
         help="Number of epochs to run the training. (int, default = 75)",
     )
@@ -56,35 +57,38 @@ def main():
     args = setup_training_parser()
     cl_config = vars(args)
 
-    
+    # Load config file
     with open(args.config, "r") as f:
-        default_config = json.load(f)
-    print(default_config)
+        config = json.load(f)
 
     # add notes, tags, 
-    default_config.update(**cl_config)
+    config.update(**cl_config)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Running model on device {device}")
 
-    wandb.init(project=default_config['env'], group=f"{default_config['network']}-v0", config=default_config)
-    config = wandb.config
+    use_wandb = not args.disable_wandb
+
+    if use_wandb:
+        wandb.init(project=config['env'], group=f"{config['network']}-v0", config=config)
     print("\nConfig:\n", config)
 
     env = gym.make(config['env'], **config['env_params'])
 
     # Add custom env wrappers
     # try wrappers RecordVideo or RecordEpisodeStatistics to document episode stats
-    env = MaxAndSkipEnv(env, frameskip=4, obs_len=4)
-    env = ScaleFrame(env, 84, 84, 4)
+    # env = MaxAndSkipEnv(env, frameskip=4, obs_len=4)
+    # env = ScaleFrame(env, 84, 84, 4)
 
     # Initialize agent
-    dqn_agent = DQN(env, seed=config["seed"], optim_kwargs=config["optim_params"], policy_kwargs=config["policy_params"], 
-                    new_step_api=config["new_step_api"], device=device, **config["alg_params"])
+    dqn_agent = DQN(env, seed=config["seed"], policy=config["policy"], optim_kwargs=config["optim_params"], policy_kwargs=config["policy_params"], 
+                    new_step_api=config["new_step_api"], device=device, use_wandb=use_wandb, **config["alg_params"])
 
     # Train agent
     # TODO: add save model
     dqn_agent.train(config["n_epochs"])
+
+    dqn_agent.test(render=True, n_iters=1)
 
 
 if __name__ == "__main__":
