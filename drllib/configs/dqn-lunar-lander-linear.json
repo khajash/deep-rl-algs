@@ -15,8 +15,8 @@
   "policy": "linear",
   "policy_params": {
     "in_features": 8,
-    "lin_layers": [128, 128],
-    "use_bn": false
+    "lin_layers": [64, 64],
+    "use_bn": true
   },
   "alg_params": {
     "explore_kwargs": {
@@ -25,9 +25,10 @@
       "end_val": 0.1,
       "duration": 1e5
     },
-    "target_update": 100,
+    "learning_starts":50000,
+    "target_update": 10,
     "mem_size":1e6,
-    "batch_size": 64,
+    "batch_size": 32,
     "gamma": 0.998
   }
 }

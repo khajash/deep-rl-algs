@@ -96,7 +96,7 @@ POLICY_MAP = {
 
 class DQN(BaseNNAlg):
 
-    def __init__(self, env, seed, policy, optim_kwargs, policy_kwargs, explore_kwargs, target_update=10, 
+    def __init__(self, env, seed, policy, optim_kwargs, policy_kwargs, explore_kwargs, target_update=10, learning_starts=5000,
                  gamma=0.998, mem_size=int(1e6), batch_size=64, device="cpu", new_step_api=False, use_wandb=False
         ) -> None:
 
@@ -111,6 +111,7 @@ class DQN(BaseNNAlg):
         self._train = True
         self.gamma = gamma
         self.batch_size = batch_size
+        self.learning_starts = learning_starts
         self.eps_sched = self._setup_exploration(**explore_kwargs)
         self.use_wandb = use_wandb
 
@@ -204,9 +205,10 @@ class DQN(BaseNNAlg):
                 self.memory.append(obs, a, rew, new_obs, done)
                 ep_rew += rew
                 
+                warming_up = len(self.memory) < self.learning_starts
                 
                 # Sample minibatch
-                if len(self.memory) >= self.batch_size:
+                if not warming_up:
                     # get batch transitions
                     b_tr = self.memory.sample(self.batch_size, to_tensor=True)
 
@@ -248,18 +250,19 @@ class DQN(BaseNNAlg):
                 ep_len += 1
 
                 # Update targete every C steps
-                if train and steps % self.target_update == 0:
+                if (not warming_up) and steps % self.target_update == 0:
                     self.target_q.load_state_dict(self.q.state_dict())
             
             # TODO: update epsilon
-            self.eps_sched.update()
+            if not warming_up:
+                self.eps_sched.update()
             # self.eps = max(self.min_eps, self.eps * self.eps_decay)
 
             ep_rew_history.append(ep_rew)
             ep_len_history.append(ep_len)
 
-            if i % 5 == 0: 
-                print(f"Episode {i}: reward -> {ep_rew :.2f}, ep_len -> {ep_len}")
+            if i % 10 == 0: 
+                print(f"Episode {i}: reward -> {ep_rew :.2f}, ep_len -> {ep_len}, warmup samples gathered -> {len(self.memory)/self.learning_starts*100 :.2f} %")
                 # TODO: log statistics
                 if self.use_wandb:
                     wandb.log({
@@ -275,8 +278,11 @@ class DQN(BaseNNAlg):
         if self._train and (np.random.rand() < self.eps_sched.get_value()):
             return self.env.action_space.sample()
 
+        self.q.eval()
         with torch.no_grad():
-            return self.q._get_action(obs).item()
+            a = self.q._get_action(obs).item()
+            self.q.train()
+            return a
         
 
 if __name__ == "__main__": 
