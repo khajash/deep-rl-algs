@@ -108,18 +108,25 @@ def main():
         buffer_size=int(alg_config['mem_size']),
         learning_starts=alg_config['learning_starts'],
         batch_size=alg_config['batch_size'],
+        target_update_interval=alg_config['target_update'],
         gamma=alg_config['gamma'],
         tensorboard_log=f"runs/{run.id}",
-        exploration_fraction=0.8, 
+        exploration_fraction=0.12, 
+        exploration_final_eps=0.1,
+        gradient_steps=-1,
+        train_freq=4,
+        policy_kwargs=dict(net_arch=[256, 256])
     )
 
-
+    # look at off policy algorithms learn
+    # separate learn and train function
     model.learn(
-        total_timesteps=10000000, 
+        total_timesteps=100000, 
         log_interval=4, 
         callback=WandbCallback(
-            gradient_save_freq=50,
-            model_save_path=f"models/{run.id}",
+            gradient_save_freq=20,
+            model_save_path=f"models/{run.id}", 
+            log='all',
             verbose=2,
         ),
     )

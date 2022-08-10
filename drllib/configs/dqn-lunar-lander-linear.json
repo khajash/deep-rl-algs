@@ -9,26 +9,26 @@
   },
   "optimizer": "adam",
   "optim_params": {
-    "lr": 1e-3
+    "lr": 0.00063
   },
   "network": "DQN",
   "policy": "linear",
   "policy_params": {
     "in_features": 8,
-    "lin_layers": [64, 64],
-    "use_bn": true
+    "lin_layers": [256, 256],
+    "use_bn": false
   },
   "alg_params": {
     "explore_kwargs": {
       "decay": "linear",
       "val": 1.0,
       "end_val": 0.1,
-      "duration": 1e5
+      "duration": 15000
     },
-    "learning_starts":50000,
-    "target_update": 10,
-    "mem_size":1e6,
-    "batch_size": 32,
-    "gamma": 0.998
+    "learning_starts":0,
+    "target_update": 250,
+    "mem_size":50000,
+    "batch_size": 128,
+    "gamma": 0.99
   }
 }
