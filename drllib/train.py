@@ -73,7 +73,7 @@ def main():
         wandb.init(project=config['env'], group=f"{config['network']}-v0", config=config)
     print("\nConfig:\n", config)
 
-    env = gym.make(config['env'], **config['env_params'])
+    env = gym.make(config['env']) #, **config['env_params'])
 
     # Add custom env wrappers
     # try wrappers RecordVideo or RecordEpisodeStatistics to document episode stats
