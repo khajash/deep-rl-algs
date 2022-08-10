@@ -208,7 +208,7 @@ class DQN(BaseNNAlg):
                 warming_up = len(self.memory) < self.learning_starts
                 
                 # Sample minibatch
-                if not warming_up:
+                if not warming_up and len(self.memory) >= self.batch_size:
                     # get batch transitions
                     b_tr = self.memory.sample(self.batch_size, to_tensor=True)
 
@@ -262,7 +262,7 @@ class DQN(BaseNNAlg):
             ep_len_history.append(ep_len)
 
             if i % 10 == 0: 
-                print(f"Episode {i}: reward -> {ep_rew :.2f}, ep_len -> {ep_len}, warmup samples gathered -> {len(self.memory)/self.learning_starts*100 :.2f} %")
+                print(f"Episode {i}: reward -> {ep_rew :.2f}, ep_len -> {ep_len}")
                 # TODO: log statistics
                 if self.use_wandb:
                     wandb.log({
