@@ -65,6 +65,8 @@ def main():
     # Load config file
     with open(args.config, "r") as f:
         config = json.load(f)
+    
+    config.update(**cl_config)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Running model on device {device}")
@@ -74,23 +76,26 @@ def main():
     if use_wandb:
         run = wandb.init(
             project=config['env'], 
-            group=f"{config['network']}-stable-v0", 
+            group=f"{config['network']}-stable-v1", 
             config=config, 
             sync_tensorboard=True, 
-            monitor_gym=True, 
+            monitor_gym=False, 
             save_code=True
         )
 
     print("\nConfig:\n", config)
+    seed = config['seed']
 
     # env = gym.make(config['env'], **config['env_params'])
     def make_env():
         env = gym.make(config['env'])
+        env.seed(seed)
+        env.action_space.seed(seed)
         env = Monitor(env)
         return env
 
     env = DummyVecEnv([make_env])
-    env = VecVideoRecorder(env, f"videos/{run.id}", record_video_trigger=lambda x: x % 2000 == 0, video_length=200)
+    # env = VecVideoRecorder(env, f"videos/{run.id}", record_video_trigger=lambda x: x % 2000 == 0, video_length=200)
     # model = PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}")
     # model.learn(
     #     total_timesteps=config["total_timesteps"],
@@ -101,7 +106,7 @@ def main():
     #     ),
     # )
     # model = PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}")
-    env = make_env()
+    # env = make_env()
     alg_config = config['alg_params']
     model = DQN("MlpPolicy", env, verbose=1, 
         learning_rate=config['optim_params']['lr'], 
@@ -114,8 +119,9 @@ def main():
         exploration_fraction=0.12, 
         exploration_final_eps=0.1,
         gradient_steps=-1,
-        train_freq=4,
-        policy_kwargs=dict(net_arch=[256, 256])
+        train_freq=1,
+        policy_kwargs=dict(net_arch=[256, 256]),
+        seed=config['seed']
     )
 
     # look at off policy algorithms learn

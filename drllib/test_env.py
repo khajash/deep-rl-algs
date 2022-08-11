@@ -31,11 +31,11 @@ def main(config_file):
 
     env = gym.make(
         "LunarLander-v2",
-        continuous = False, # makes action space continuous
-        gravity = -10.0,
-        enable_wind = False,
-        wind_power = 15.0,
-        turbulence_power = 1.5,
+        # continuous = False, # makes action space continuous
+        # gravity = -10.0,
+        # enable_wind = False,
+        # wind_power = 15.0,
+        # turbulence_power = 1.5,
         # render_mode = "rgb_array"
     )
 
@@ -49,6 +49,7 @@ def main(config_file):
     done = False
 
     print("obs shape", obs.shape, obs.min(), obs.max())
+    
     # show_obs(obs, 4)
     # plt.imshow(obs)
     # plt.show()

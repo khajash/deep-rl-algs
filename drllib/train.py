@@ -70,7 +70,7 @@ def main():
     use_wandb = not args.disable_wandb
 
     if use_wandb:
-        wandb.init(project=config['env'], group=f"{config['network']}-v0", config=config)
+        wandb.init(project=config['env'], group=f"{config['network']}-v2", config=config)
     print("\nConfig:\n", config)
 
     env = gym.make(config['env']) #, **config['env_params'])
@@ -88,7 +88,7 @@ def main():
     # TODO: add save model
     dqn_agent.train(config["n_epochs"])
 
-    dqn_agent.test(render=True, n_iters=1)
+    dqn_agent.test(render=True, n_iters=2)
 
 
 if __name__ == "__main__":
