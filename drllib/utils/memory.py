@@ -35,7 +35,7 @@ class CircularBuffer(object):
             return self.insert_idx
 
     def append(self, data: np.ndarray) -> None:
-        self.data_buff[self.insert_idx] = data
+        self.data_buff[self.insert_idx] = np.array(data).copy()
         
         # Adjust insertion index and check if buffer is full
         self.insert_idx = self.insert_idx + 1
@@ -54,11 +54,14 @@ class ReplayMemory(object):
         max_len: int,
         obs_shape: tuple,
         act_shape: tuple,
+        obs_maxs: np.ndarray,
         device: str = 'cpu',
         dtype: str = 'float32'
     ) -> None:
 
         self.device = device
+        self.obs_maxs = obs_maxs
+        assert obs_shape == obs_maxs.shape
 
         self.obs = CircularBuffer(max_len, obs_shape, dtype)
         self.act = CircularBuffer(max_len, act_shape, 'int')
@@ -70,11 +73,12 @@ class ReplayMemory(object):
         if batch_size > len(self.obs):
             raise IndexError("Searching for one or more index out of range")
             
+        # TODO: add normalization of REW and OBS
         batch_idxs = np.random.choice(len(self.obs), batch_size, replace=False)
-        batch_obs = self.obs.get_batch(batch_idxs)
+        batch_obs = self._normalize_obs(self.obs.get_batch(batch_idxs))
         batch_act = self.act.get_batch(batch_idxs)
-        batch_rew = self.rew.get_batch(batch_idxs)
-        batch_new_obs = self.new_obs.get_batch(batch_idxs)
+        batch_rew = np.clip(self.rew.get_batch(batch_idxs), -1., 1.)
+        batch_new_obs = self._normalize_obs(self.new_obs.get_batch(batch_idxs))
         batch_done = self.done.get_batch(batch_idxs)
 
         # TODO: baselines expands 1D arrays to (N,1) arrays - this is probably for loss or other calcs later
@@ -87,11 +91,14 @@ class ReplayMemory(object):
         }
 
         if to_tensor:
-            # TODO: somewhere need to convert channels from (H, W, C) -> (C, H, W) for torch
             for k, v in batch.items():
                 batch[k] = torch.from_numpy(v).to(device=self.device)
 
         return batch
+
+    def _normalize_obs(self, obs):
+        # print("normalize obs: ", obs.shape, self.obs_maxs.shape )
+        return obs / self.obs_maxs
 
     def append(
         self, 
