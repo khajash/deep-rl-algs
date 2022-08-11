@@ -1,6 +1,7 @@
-from audioop import bias
-from os import NGROUPS_MAX
-from matplotlib import use
+# from audioop import bias
+# from os import NGROUPS_MAX
+# from matplotlib import use
+from collections import defaultdict
 from torch import nn, optim
 import torch
 import numpy as np
@@ -104,8 +105,12 @@ class DQN(BaseNNAlg):
 
         obs = env.reset()
         print("obs shape", obs)
+        # obs_maxs = env.observation_space.high
+        self.obs_maxs = np.array([1.5, 1.5, 5., 5., 3.14, 5., 1., 1. ], dtype=np.float32)
+        print("obs high: ", self.obs_maxs)
         # init memory
-        self.memory = ReplayMemory(max_len=int(mem_size), obs_shape=obs.shape, act_shape=(1,), device=device)
+        self.memory = ReplayMemory(max_len=int(mem_size), obs_shape=obs.shape, 
+            act_shape=(1,), obs_maxs=self.obs_maxs, device=device)
         self.n_actions = self.env.action_space.n
         self.device = device
         self._train = True
@@ -170,6 +175,8 @@ class DQN(BaseNNAlg):
                 ep_rew += rew
                 steps += 1
                 ep_len += 1
+                
+                obs = new_obs
 
             ep_rew_history.append(ep_rew)
             ep_len_history.append(ep_len)
@@ -183,6 +190,7 @@ class DQN(BaseNNAlg):
         steps = 0
         ep_rew_history = []
         ep_len_history = []
+        # total_timesteps = 0
 
         # for every epoch
         for i in range(n_iters):
@@ -192,22 +200,38 @@ class DQN(BaseNNAlg):
             ep_rew = 0
             ep_len = 0
             ep_loss = []
+            obs_data = defaultdict(list)
+            curr_qvals_data = defaultdict(list)
+            target_qvals_data = defaultdict(list)
+            acts = []
+
+            # TODO: switch to collecting rollouts (?) or at least switch to going multiple 
+            # steps before sampling training
 
             while not done:
                 
+                # TODO: set policy to eval
+                self.q.eval()
                 tensor_obs = torch.from_numpy(obs).unsqueeze(0).to(self.device)
                 # perform e-greedy action selection
                 # print(tensor_obs.shape)
                 a = self._get_action(tensor_obs)
 
                 new_obs, rew, done, info = self._step_env(a)
+                acts.append(a)
+                # print("obs", )
+                # TODO: is this where I clip rewards?? 
+                # TODO: Add rew and obs normalization to memory.sample
 
                 self.memory.append(obs, a, rew, new_obs, done)
                 ep_rew += rew
-                
+                obs = new_obs
+
                 warming_up = len(self.memory) < self.learning_starts
                 
                 # Sample minibatch
+                # TODO set policy train to true
+                self.q.train()
                 if not warming_up and len(self.memory) >= self.batch_size:
                     # get batch transitions
                     b_tr = self.memory.sample(self.batch_size, to_tensor=True)
@@ -216,34 +240,53 @@ class DQN(BaseNNAlg):
                     #     print(k, v.shape, v.dtype)
 
                     # print("qval out: ", self.target_q(b_tr["new_obs"]).shape)
-                    q_val, _ = torch.max(self.target_q(b_tr["new_obs"]), dim=1, keepdim=True)
-                    # print("q val target: ", q_val.shape)
+                    with torch.no_grad():
+                        next_q_vals, _ = torch.max(self.target_q(b_tr["new_obs"]), dim=1, keepdim=True)
+                        # print("q val target: ", q_val.shape)
 
-                    # with torch.no_grad():
-                    td_targets = b_tr["rew"] + self.gamma * q_val * (1. - b_tr["done"])
+                        td_targets = b_tr["rew"] + self.gamma * next_q_vals * (1. - b_tr["done"])
                     
                     # print("actions: ", b_tr["act"].shape, b_tr["act"])
                     # select q val from action a
-                    # TODO use gather() to select actions that would be taken?
-                        # qvals.gather(1, )
-                    act_select = nn.functional.one_hot(b_tr["act"].reshape(-1), num_classes=self.n_actions)
                     qvals = self.q(b_tr["obs"])
+                    qvals_gather = torch.gather(qvals, dim=1, index=b_tr["act"].long())
+
+                    obs_data['min'].append(torch.min(b_tr["obs"],dim=0)[0].detach().cpu().numpy())
+                    obs_data['max'].append(torch.max(b_tr["obs"],dim=0)[0].detach().cpu().numpy())
+
+                    curr_qvals_data['min'].append(torch.min(qvals_gather).item())
+                    curr_qvals_data['max'].append(torch.max(qvals_gather).item())
+                    curr_qvals_data['mean'].append(torch.mean(qvals_gather).item())
+
+                    target_qvals_data['min'].append(torch.min(td_targets).item())
+                    target_qvals_data['max'].append(torch.max(td_targets).item())
+                    target_qvals_data['mean'].append(torch.mean(td_targets).item())
+
+                    
+                    # select using one hot vector - methods are the same
+                    # act_select = nn.functional.one_hot(b_tr["act"].reshape(-1), num_classes=self.n_actions)
                     # print("qvals and action selection: ", act_select.shape, qvals.shape)
-                    qvals_select = torch.sum(act_select * qvals, dim=1, keepdim=True)
+                    # qvals_select = torch.sum(act_select * qvals, dim=1, keepdim=True)
+                    # print("gather: ", qvals_gather.shape)
+                    # print("select: ", qvals_select.shape)
+                    # print(torch.all(qvals_select == qvals_gather)) # is equal
+                    # TODO: Add reward clipping!!
+                    # print(td_targets.shape, qvals_gather.shape)
+                    # print("current qvals: ", qvals_gather)
+                    # print("target qvals: ", td_targets)
 
-                    # print(td_targets.shape, qvals_select.shape)
-
-                    loss = self.loss_fn(td_targets, qvals_select)
-                    # print("loss: ", loss)
+                    loss = self.loss_fn(td_targets, qvals_gather)
                     ep_loss.append(loss.item())
+                    # print("loss: ", ep_loss[-1])
 
                     # backprop
                     self.optimizer.zero_grad()
                     loss.backward()
                     # clamp gradients between (-1, 1)
-                    for param in self.q.parameters():
-                        nn.utils.clip_grad.clip_grad_value_(param, clip_value=1)
+                    # for param in self.q.parameters():
+                    #     nn.utils.clip_grad.clip_grad_value_(param, clip_value=1)
                         # param.grad.data.clamp_(-1,1)
+                    nn.utils.clip_grad.clip_grad_norm_(self.q.parameters(), max_norm=10.)
                     self.optimizer.step()
 
                 steps += 1
@@ -262,27 +305,37 @@ class DQN(BaseNNAlg):
             ep_len_history.append(ep_len)
 
             if i % 10 == 0: 
-                print(f"Episode {i}: reward -> {ep_rew :.2f}, ep_len -> {ep_len}")
+                print(f"Episode {i}: reward -> {ep_rew :.2f}, ep_len -> {ep_len}, ep_loss -> {np.mean(ep_loss):.2f}")
                 # TODO: log statistics
                 if self.use_wandb:
                     wandb.log({
-                        "ep_reward":ep_rew,
-                        "ep_reward_smooth": np.mean(ep_rew_history[-100:]),
-                        "ep_length": ep_len,
-                        "ep_length_smooth": np.mean(ep_len_history[-100:]),
-                        "ep_mean_loss": np.mean(ep_loss),
-                        "epsilon": self.eps_sched.get_value(),
-                    })
+                        "rollout/ep_reward":ep_rew,
+                        "rollout/ep_rew_mean": np.mean(ep_rew_history[-100:]),
+                        "rollout/ep_length": ep_len,
+                        "rollout/ep_len_mean": np.mean(ep_len_history[-100:]),
+                        "train/loss_mean": np.mean(ep_loss),
+                        "rollout/exploration_rate": self.eps_sched.get_value(),
+                        "global_step": steps,
+                        "rollout/actions": wandb.Histogram(acts)
+                    }, step=steps)
+
+                    for k, v in obs_data.items():
+                        feats = np.mean(np.stack(v, axis=0), axis=0)
+                        # print("obs batch shape: ", feats.shape)
+                        wandb.log({f"debug/obs_{i}_{k}" : feats[i] for i in range(len(feats))}, step=steps)
+
+
+                    # wandb.log({f"debug/obs_{k}" : wandb.Histogram(np.mean(np.stack(v, axis=0), axis=0)) for k, v in obs_data.items()})
+                    wandb.log({f"debug/curr_qvals_{k}" : np.mean(v) for k, v in curr_qvals_data.items()}, step=steps)
+                    wandb.log({f"debug/target_qvals_{k}" : np.mean(v) for k, v in target_qvals_data.items()}, step=steps)
 
     def _get_action(self, obs):
         if self._train and (np.random.rand() < self.eps_sched.get_value()):
             return self.env.action_space.sample()
 
-        self.q.eval()
-        with torch.no_grad():
-            a = self.q._get_action(obs).item()
-            self.q.train()
-            return a
+        # with torch.no_grad():
+        a = self.q._get_action(obs).item()
+        return a
         
 
 if __name__ == "__main__": 
